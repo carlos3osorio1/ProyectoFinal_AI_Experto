@@ -1,0 +1,168 @@
+{
+  "name": "Worker 3 - AI-as-a-Judge",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ff2d2f80-d29d-450a-aae0-74839384b781",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtiene la respuesta cruda del LLM\nlet rawText = $input.first().json.choices?.[0]?.message?.content || \n              $input.first().json.text || \n              $input.first().json.response || \n              \"\";\n\n// Limpieza nivel 1: Elimina bloques de markdown\nlet cleanText = rawText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\n// Limpieza nivel 2: Elimina caracteres de control invisibles\ncleanText = cleanText.replace(/[\\u0000-\\u001F\\u007F-\\u009F]/g, '');\n\n// Limpieza nivel 3: Reemplaza comillas simples por dobles (solo si es necesario)\n// Pero preserva las comillas dobles dentro de strings\ntry {\n  const parsedJson = JSON.parse(cleanText);\n  return [{ json: parsedJson }];\n} catch (e) {\n  // Intento 2: Si falla, trata de extraer el JSON de cualquier texto envolvente\n  const jsonMatch = cleanText.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    try {\n      const extractedJson = JSON.parse(jsonMatch[0]);\n      return [{ json: extractedJson }];\n    } catch (e2) {\n      // Intento 3: Si sigue fallando, construye un JSON de error estructurado\n      return [{ json: { \n        error: \"Formato JSON inválido tras múltiples intentos\",\n        raw_output: rawText.substring(0, 500) + (rawText.length > 500 ? \"...\" : \"\"),\n        evaluacion: {\n          margen_respetado: 0,\n          calculos_correctos: false,\n          reglas_credito_respetadas: 0,\n          citas_fuentes_reales: false,\n          score_total: 0\n        },\n        dictamen: \"REVISION_HUMANA\",\n        razon_tecnica: \"El LLM no devolvió un JSON válido. Se requiere revisión humana manual.\"\n      }}];\n    }\n  }\n  \n  // Fallback total\n  return [{ json: { \n    error: \"No se encontró estructura JSON en la respuesta\",\n    raw_output: rawText.substring(0, 500),\n    evaluacion: {\n      margen_respetado: 0,\n      calculos_correctos: false,\n      reglas_credito_respetadas: 0,\n      citas_fuentes_reales: false,\n      score_total: 0\n    },\n    dictamen: \"REVISION_HUMANA\",\n    razon_tecnica: \"Respuesta del LLM no estructurada. Revisión manual requerida.\"\n  }}];\n}"
+      },
+      "id": "da6afb59-0ef2-408f-b981-e266c8a699f0",
+      "name": "Limpiar y Parsear JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const entrada = $input.first().json;\nreturn [{\n  json: {\n    pedido_generado: entrada.pedido_generado || entrada,\n    politicas_base: entrada.politicas_base || {\n      productos: entrada.productos, regla_descuento: entrada.regla_descuento,\n      plazo_pago_max: entrada.plazo_pago_max, fuentes_citadas: entrada.fuentes_citadas\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "4df59540-f789-4b7d-bb57-326e4b326997",
+      "name": "Code (Parsear entradas)"
+    },
+    {
+      "parameters": {
+        "model": "openrouter/free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        416,
+        192
+      ],
+      "id": "8a2023f0-dd6f-4bd7-8bf5-872ad25fe567",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "9a1bznYTvIqq8E2Y",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verifica si hubo error en el parsing anterior\nconst input = $input.first().json;\n\nif (input.error) {\n  return [{\n    json: {\n      evaluacion: {\n        margen_respetado: 0,\n        calculos_correctos: false,\n        reglas_credito_respetadas: 0,\n        citas_fuentes_reales: false,\n        score_total: 0\n      },\n      dictamen: \"REVISION_HUMANA\",\n      razon_tecnica: input.razon_tecnica || \"Error de parsing en evaluación. Requiere revisión manual.\"\n    }\n  }];\n}\n\n// Recibe la evaluación del LLM\nconst evaluacion = input.evaluacion || {};\nconst dictamenOriginal = input.dictamen;\nconst razonTecnicaOriginal = input.razon_tecnica || \"\";\n\n// ✅ CORRECCIÓN: Usar el score_total que ya calculó el LLM\n// El LLM ya devolvió un score coherente (0-5), no hay que recalcularlo\nconst scoreTotal = Number(evaluacion.score_total) || 0;\n\n// Validar que el score esté en rango 0-5\nconst scoreValidado = Math.max(0, Math.min(5, scoreTotal));\n\n// El Juez decide basándose en el score del LLM\nconst dictamenFinal = scoreValidado >= 4 ? \"APROBAR_AUTOMATICO\" : \"REVISION_HUMANA\";\n\n// Genera razón técnica coherente\nlet razonTecnicaFinal = \"\";\n\nif (scoreValidado >= 4) {\n  razonTecnicaFinal = `AUDITORÍA APROBADA (Score: ${scoreValidado.toFixed(2)}/5.0). `;\n  razonTecnicaFinal += `Margen: ${evaluacion.margen_respetado}/1. Cálculos: ${evaluacion.calculos_correctos ? 'Correctos' : 'Incorrectos'}. `;\n  razonTecnicaFinal += `Crédito: ${evaluacion.reglas_credito_respetadas}/1. Fuentes: ${evaluacion.citas_fuentes_reales ? 'Reales' : 'No reales'}. `;\n  razonTecnicaFinal += `El pedido cumple políticas y puede procesarse automáticamente.`;\n} else {\n  razonTecnicaFinal = `AUDITORÍA RECHAZADA (Score: ${scoreValidado.toFixed(2)}/5.0). `;\n  razonTecnicaFinal += `Margen: ${evaluacion.margen_respetado}/1. Cálculos: ${evaluacion.calculos_correctos ? 'Correctos' : 'Incorrectos'}. `;\n  razonTecnicaFinal += `Crédito: ${evaluacion.reglas_credito_respetadas}/1. Fuentes: ${evaluacion.citas_fuentes_reales ? 'Reales' : 'No reales'}. `;\n  razonTecnicaFinal += `No cumple umbral mínimo (4.0). Requiere revisión humana. `;\n  \n  if (Number(evaluacion.margen_respetado) === 0) razonTecnicaFinal += `Problema: margen no respetado. `;\n  if (Number(evaluacion.reglas_credito_respetadas) === 0) razonTecnicaFinal += `Problema: crédito excedido. `;\n  if (!evaluacion.calculos_correctos) razonTecnicaFinal += `Problema: cálculos incorrectos. `;\n  if (!evaluacion.citas_fuentes_reales) razonTecnicaFinal += `Problema: fuentes no reales. `;\n}\n\nreturn [{\n  json: {\n    evaluacion: {\n      margen_respetado: Number(evaluacion.margen_respetado) || 0,\n      calculos_correctos: evaluacion.calculos_correctos || false,\n      reglas_credito_respetadas: Number(evaluacion.reglas_credito_respetadas) || 0,\n      citas_fuentes_reales: evaluacion.citas_fuentes_reales || false,\n      score_total: scoreValidado\n    },\n    dictamen: dictamenFinal,\n    razon_tecnica: razonTecnicaFinal\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "id": "4b026554-8f47-47db-aa32-6d6a833e4f24",
+      "name": "Recalcular Score Juez"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ \"PEDIDO GENERADO:\\n\" + JSON.stringify($json.pedido_generado) + \"\\n\\nPOLÍTICAS BASE:\\n\" + JSON.stringify($json.politicas_base) }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Eres un Auditor de Pedidos B2B especializado en cumplimiento de políticas corporativas. Tu tarea es evaluar el pedido generado comparándolo rigurosamente con las políticas de la empresa.\n\nREGLAS DE EVALUACIÓN:\n1. Verifica que todos los cálculos matemáticos (totales, descuentos aplicados) sean exactos.\n2. Valida que el descuento solicitado y el plazo de pago NO excedan los límites máximos permitidos en el contexto RAG.\n3. Deduce puntos en la calificación si se mencionan fuentes inexistentes o si se utiliza un SKU marcado como \"NO_ENCONTRADO\".\n4. Responde EXCLUSIVAMENTE con un objeto JSON válido. No incluyas texto adicional, ni explicaciones, ni bloques de código markdown (```).\n\nFORMATO JSON OBLIGATORIO:\n{\n  \"evaluacion\": {\n    \"margen_respetado\": 1,\n    \"calculos_correctos\": true,\n    \"reglas_credito_respetadas\": 1,\n    \"citas_fuentes_reales\": true,\n    \"score_total\": 4\n  },\n  \"dictamen\": \"APROBAR_AUTOMATICO\",\n  \"razon_tecnica\": \"El pedido cumple con todas las políticas: margen del 15%, descuento del 5% (máx 10%) y plazo de 30 días (máx 30 días).\"\n}\n\nINSTRUCCIONES DE PUNTUACIÓN (score_total):\n- Asigna 1 punto si el margen es >= al mínimo requerido.\n- Asigna 1 punto si los cálculos matemáticos son correctos.\n- Asigna 1 punto si el plazo de pago es <= al máximo permitido.\n- Asigna 1 punto si el descuento es <= al máximo permitido.\n- Asigna 1 punto si las fuentes/SKUs son válidos.\n- Si el score_total es menor a 4, el \"dictamen\" debe ser obligatoriamente \"REVISION_HUMANA\".\n\nPEDIDO GENERADO: \n{{ $json.pedido_generado }}\n\nPOLÍTICAS BASE: \n{{ $json.politicas_base }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        416,
+        0
+      ],
+      "id": "25d1f04c-be58-4668-bf0b-8d6a2e73a487",
+      "name": "LLM AI-as-a-Judge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code (Parsear entradas)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Parsear entradas)": {
+      "main": [
+        [
+          {
+            "node": "LLM AI-as-a-Judge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LLM AI-as-a-Judge",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar y Parsear JSON": {
+      "main": [
+        [
+          {
+            "node": "Recalcular Score Juez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM AI-as-a-Judge": {
+      "main": [
+        [
+          {
+            "node": "Limpiar y Parsear JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "904c9f4d-b98a-430c-bf4a-82aecd5a0ec1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c6d036f4268dbd49e602e966ac37171e86ef791cc4bb3382471c1a03bf7434e3"
+  },
+  "nodeGroups": [],
+  "id": "Fyiu1Wk0e4OH9nRu",
+  "tags": []
+}

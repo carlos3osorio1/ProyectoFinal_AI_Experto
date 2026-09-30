@@ -1,0 +1,373 @@
+{
+  "name": "HITL Callback Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "id": "4a813a2c-c7d1-4fb6-a914-bda02d780447",
+      "name": "Telegram Callback Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        96
+      ],
+      "webhookId": "telegram-callback-webhook-id",
+      "credentials": {
+        "telegramApi": {
+          "id": "jjTtix1Tyt30RBe3",
+          "name": "Gerente B2BBot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const callbackQuery = $input.first().json.callback_query;\nconst chatIdGerente = callbackQuery.message.chat.id;\nconst messageId = callbackQuery.message.message_id;\nconst callbackData = callbackQuery.data;\n\nlet accion = '';\nlet quoteId = '';\n\n// Formato 1: \"approve_1bnknen\" (con guion bajo)\nif (callbackData.includes('approve_')) {\n  accion = 'approve';\n  quoteId = callbackData.split('approve_')[1];\n}\n// Formato 2: \"reject_1bnknen\" (con guion bajo)\nelse if (callbackData.includes('reject_')) {\n  accion = 'reject';\n  quoteId = callbackData.split('reject_')[1];\n}\n// Formato 3: \"approve 1bnknen\" (con espacio - el que tenés ahora)\nelse if (callbackData.includes('approve ')) {\n  accion = 'approve';\n  quoteId = callbackData.split('approve ')[1];\n}\n// Formato 4: \"reject 1bnknen\" (con espacio)\nelse if (callbackData.includes('reject ')) {\n  accion = 'reject';\n  quoteId = callbackData.split('reject ')[1];\n}\n// Fallback: split por guion bajo\nelse {\n  const parts = callbackData.split('_');\n  accion = parts[0].trim();\n  quoteId = parts[1] || '';\n}\n\n// Limpiar espacios en blanco\naccion = accion.trim();\nquoteId = quoteId.trim();\n\nconst esAprobacion = accion === 'approve';\nconst nuevoStatus = esAprobacion ? 'APPROVED_BY_HUMAN' : 'REJECTED_BY_HUMAN';\nconst mensajeRespuesta = esAprobacion \n  ? '✅ Pedido APROBADO manualmente. Esperando confirmación del cliente.' \n  : '❌ Pedido RECHAZADO manualmente. El cliente será notificado.';\n\nreturn [{\n  json: {\n    quote_id: quoteId,\n    chat_id_gerente: chatIdGerente,\n    message_id: messageId,\n    accion: accion,\n    es_aprobacion: esAprobacion,\n    nuevo_status: nuevoStatus,\n    mensaje_respuesta: mensajeRespuesta,\n    callback_data_original: callbackData\n  }\n}];"
+      },
+      "id": "c4dfa904-8c97-441f-962d-8cda85593332",
+      "name": "Parsear Callback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Parsear Callback').item.json.accion }}",
+              "value2": "approve"
+            }
+          ]
+        }
+      },
+      "id": "aafd1e9a-9fa6-4ce2-8305-232191e95115",
+      "name": "¿Aprobar o Rechazar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Obtener datos del cliente').item.json.chat_id }}",
+        "text": "=✅ *Pedido Aprobado por Gerencia (con ajustes)*\n\nTu solicitud fue revisada. Estas son las *condiciones finales aprobadas*:\n\n{{ $('Preparar Datos para Airtable HITL').item.json.texto_condiciones }}\n\n⚠️ *Importante:* las condiciones que solicitaste originalmente superan nuestra política comercial vigente.\nSi estás de acuerdo, respondé *CONFIRMO* para registrar el pedido.\nSi no, respondé *CANCELAR* para descartarlo.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "d6adb38a-d983-4c37-8828-33ef1f6f990a",
+      "name": "Notificar Aprobación",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        448,
+        0
+      ],
+      "webhookId": "d1452bdb-b0c4-432e-b4b5-2e8a2712a91f",
+      "credentials": {
+        "telegramApi": {
+          "id": "73mtvCTDSnGdCO6R",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "quotes_state",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "quote_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.quote_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "REJECTED_BY_HUMAN"
+            }
+          ]
+        }
+      },
+      "id": "11e1ba55-13dd-463b-8e82-80d3d414666e",
+      "name": "Actualizar a REJECTED",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        64,
+        224
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "fF2dv5I5psdk9umR",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Obtener datos del cliente').item.json.chat_id }}",
+        "text": "❌ *Pedido Rechazado*\n\nLamentamos informarte que tu solicitud no ha sido aprobada por la gerencia. Por favor, contacta a tu representante de ventas para más información.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "01f436e1-bcba-45ac-a5d1-2e30a5896fda",
+      "name": "Notificar Rechazo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        352,
+        224
+      ],
+      "webhookId": "b50ba0eb-46f6-4eee-8088-be587560b092",
+      "credentials": {
+        "telegramApi": {
+          "id": "73mtvCTDSnGdCO6R",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "={{ $('Telegram Callback Trigger').item.json.callback_query.message.chat.id }}",
+        "messageId": "={{ $('Parsear Callback').item.json.message_id }}",
+        "text": "={{ $('Parsear Callback').item.json.mensaje_respuesta }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "8ff81fe6-da5b-4e99-be0a-f2dc45d48619",
+      "name": "Confirmar al Gerente",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        736,
+        128
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "jjTtix1Tyt30RBe3",
+          "name": "Gerente B2BBot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const datosCliente = $('Obtener datos del cliente').item.json;\nconst accion = $('Parsear Callback').item.json.accion;\nconst quoteId = $('Parsear Callback').item.json.quote_id;\n\nlet productos = datosCliente.productos || datosCliente.pedido?.productos || [];\nif (typeof productos === 'string') { try { productos = JSON.parse(productos); } catch (e) { productos = []; } }\nif (!Array.isArray(productos)) productos = [];\n\nlet totalFinal = Number(datosCliente.total_final) || 0;\nif (!totalFinal && productos.length > 0) totalFinal = productos.reduce((suma, p) => suma + (Number(p.subtotal) || 0), 0);\nconst plazoPago = datosCliente.plazo_pago || datosCliente.pedido?.plazo_pago || 'N/A';\n\nconst productosTexto = productos.length > 0\n  ? productos.map(p => `SKU: ${p.sku} | Cant: ${p.cantidad} | Precio: $${p.precio_unit} | Desc: ${p.descuento_pct}% | Subtotal: $${p.subtotal}`).join('\\n')\n  : 'No disponible';\n\nlet textoCondiciones;\nif (productos.length > 0 && totalFinal > 0) {\n  textoCondiciones = `📦 ${productosTexto}\\n💰 *Total:* $${totalFinal}\\n📅 *Plazo de pago:* ${plazoPago}`;\n} else {\n  textoCondiciones = `📋 *Estado:* el pedido no pudo estructurarse automáticamente y pasó a revisión manual.\\nUn ejecutivo de ventas te contactará con la cotización final.`;\n}\n\nreturn [{\n  json: {\n    quote_id: quoteId, chat_id: datosCliente.chat_id, sku_productos: productosTexto, total: totalFinal,\n    plazo_pago: plazoPago, status: 'Aprobado por Gerencia', dictamen_juez: `Aprobación manual por gerente. Acción: ${accion}`,\n    fecha_creacion: new Date().toISOString(), texto_condiciones: textoCondiciones\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "9ed2e6c2-732a-4335-a468-51bc5c3e3910",
+      "name": "Preparar Datos para Airtable HITL"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "quotes_state",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "quote_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.quote_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "AWAITING_CLIENT_CONFIRM"
+            }
+          ]
+        }
+      },
+      "id": "1f9c189a-3ade-4ccb-907c-ea1efcc9540c",
+      "name": "Actualizar a AWAITING_CLIENT_CONFIRM",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "fF2dv5I5psdk9umR",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "quotes_state",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "quote_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.quote_id }}"
+            }
+          ]
+        }
+      },
+      "id": "e3871a6d-3626-4395-a8d8-97bc7cd123a3",
+      "name": "Obtener datos del cliente",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        96
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "fF2dv5I5psdk9umR",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Callback Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parsear Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Callback": {
+      "main": [
+        [
+          {
+            "node": "Obtener datos del cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Aprobar o Rechazar?": {
+      "main": [
+        [
+          {
+            "node": "Actualizar a AWAITING_CLIENT_CONFIRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Actualizar a REJECTED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar Aprobación": {
+      "main": [
+        [
+          {
+            "node": "Confirmar al Gerente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar a REJECTED": {
+      "main": [
+        [
+          {
+            "node": "Notificar Rechazo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar Rechazo": {
+      "main": [
+        [
+          {
+            "node": "Confirmar al Gerente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos para Airtable HITL": {
+      "main": [
+        [
+          {
+            "node": "Notificar Aprobación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar a AWAITING_CLIENT_CONFIRM": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos para Airtable HITL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener datos del cliente": {
+      "main": [
+        [
+          {
+            "node": "¿Aprobar o Rechazar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0e3be145-8c0a-4924-9966-087032ea159f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c6d036f4268dbd49e602e966ac37171e86ef791cc4bb3382471c1a03bf7434e3"
+  },
+  "nodeGroups": [],
+  "id": "QG9HeOsl4dKWPUQ2",
+  "tags": []
+}

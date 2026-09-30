@@ -1,0 +1,276 @@
+{
+  "name": "Worker 2 - Armador de Pedido",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "4494ed14-94a4-4517-9b1a-bedbf97c4fcb",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const entrada = $input.first().json;\nconst politicas = entrada.politicas_extraidas || entrada;\nconst productos = entrada.productos || politicas.productos || [];\nconst regla = entrada.regla_descuento || politicas.regla_descuento || '';\nconst plazo = entrada.plazo_pago_max || politicas.plazo_pago_max || '';\nconst fuentes = entrada.fuentes_citadas || politicas.fuentes_citadas || [];\nconst mensaje = entrada.mensaje_cliente || entrada.mensaje_original || '';\n\nreturn [{\n  json: {\n    productos, regla_descuento: regla, plazo_pago_max: plazo, fuentes_citadas: fuentes, mensaje_cliente: mensaje,\n    politicas_extraidas: { productos, regla_descuento: regla, plazo_pago_max: plazo, fuentes_citadas: fuentes }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        320
+      ],
+      "id": "fd878449-f095-459a-b022-e7e345a8a441",
+      "name": "Parsear entrada"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ \"POLÍTICAS EXTRAÍDAS:\\n\" + JSON.stringify($json.politicas_extraidas) + \"\\n\\nMENSAJE DEL CLIENTE: \" + $json.mensaje_cliente }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Eres un Asistente de Ventas B2B especializado en estructurar pedidos de clientes según las políticas corporativas.\n\nREGLA CRÍTICA: NUNCA modifiques la cantidad de unidades que el cliente solicitó. Usa EXACTAMENTE la cantidad que el cliente pidió.\n\nTu tarea es organizar la solicitud del cliente aplicando las reglas de descuento y plazo de pago que se indican en el contexto.\n\nINSTRUCCIONES:\n1. Usa EXACTAMENTE la cantidad de unidades que el cliente solicitó. NO la cambies.\n2. Si el cliente solicita un descuento superior al permitido, ajústalo al máximo autorizado e indica la razón.\n3. Si el cliente solicita un plazo superior al máximo permitido, ajústalo al máximo autorizado e indica la razón.\n4. Calcula los subtotales: cantidad × precio_unit × (1 - descuento_pct/100)\n5. Calcula el total_final sumando todos los subtotales.\n6. Devuelve únicamente un objeto JSON válido: sin texto adicional, sin markdown, sin bloques de código ```json.\n\nFORMATO DE SALIDA:\n{\n  \"cliente_id\": \"C-001\",\n  \"productos\": [\n    {\n      \"sku\": \"SKU-001\",\n      \"cantidad\": 10,\n      \"precio_unit\": 10.00,\n      \"descuento_pct\": 5.00,\n      \"subtotal\": 95.00\n    }\n  ],\n  \"total_final\": 95.00,\n  \"plazo_pago\": \"30 días\",\n  \"justificacion_ajustes\": \"Se aplicó el descuento del 5% según política.\",\n  \"fuentes_citadas\": [\"Catálogo de Productos 2026\"]\n}\n\nSOLICITUD DEL CLIENTE:\n{{ $('Parsear entrada').item.json.mensaje_cliente }}\n\nPRODUCTOS DISPONIBLES:\n{{ JSON.stringify($('Parsear entrada').item.json.productos) }}\n\nPOLÍTICAS APLICABLES:\n- Regla de descuento: {{ $('Parsear entrada').item.json.regla_descuento }}\n- Plazo máximo de pago: {{ $('Parsear entrada').item.json.plazo_pago_max }}\n\nFUENTES CITADAS:\n{{ JSON.stringify($('Parsear entrada').item.json.fuentes_citadas) }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        288,
+        320
+      ],
+      "id": "09ba7581-ee97-4cb0-9c39-2819d397dde0",
+      "name": "LLM Armador de Pedido"
+    },
+    {
+      "parameters": {
+        "model": "openrouter/free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        768,
+        736
+      ],
+      "id": "507f7c0e-ddbb-4b93-a543-c7cd905191b1",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "9a1bznYTvIqq8E2Y",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawText = $input.first().json.choices?.[0]?.message?.content || $input.first().json.text || \"\";\n\nlet cleanText = rawText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\ntry {\n  const parsedJson = JSON.parse(cleanText);\n  return [{ json: parsedJson }];\n} catch (e) {\n  return [{ json: { \n    error: \"Formato JSON inválido devuelto por el LLM\", \n    raw_output: rawText,\n    fallback_action: \"REQUIERE_REVISION\" \n  }}];\n}"
+      },
+      "id": "ec2df876-b3c7-4d26-8238-82b00c6e0620",
+      "name": "Limpiar y Parsear JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        608,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7b86a7c9-0eaf-4f98-9d5c-bb6ab71ac73f",
+              "leftValue": "={{ !$json.fallback_action }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        832,
+        320
+      ],
+      "id": "187b99a2-cf3e-4edd-9720-dc59d706ebb8",
+      "name": "¿Parse OK?"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1056,
+        416
+      ],
+      "id": "fd4c6ae6-df06-4d37-8f41-0b69882a1e99",
+      "name": "Wait",
+      "webhookId": "f133d96b-5e2e-469e-9a7f-c84aeec09b46"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ \"POLÍTICAS EXTRAÍDAS:\\n\" + JSON.stringify($('Parsear entrada').item.json.politicas_extraidas) + \"\\n\\nMENSAJE DEL CLIENTE: \" + $('Parsear entrada').item.json.mensaje_cliente }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Eres un Asistente de Ventas B2B especializado en estructurar pedidos de clientes según las políticas corporativas.\n\nREGLA CRÍTICA: NUNCA modifiques la cantidad de unidades que el cliente solicitó. Usa EXACTAMENTE la cantidad que el cliente pidió.\n\nTu tarea es organizar la solicitud del cliente aplicando las reglas de descuento y plazo de pago que se indican en el contexto.\n\nINSTRUCCIONES:\n1. Usa EXACTAMENTE la cantidad de unidades que el cliente solicitó. NO la cambies.\n2. Si el cliente solicita un descuento superior al permitido, ajústalo al máximo autorizado e indica la razón.\n3. Si el cliente solicita un plazo superior al máximo permitido, ajústalo al máximo autorizado e indica la razón.\n4. Calcula los subtotales: cantidad × precio_unit × (1 - descuento_pct/100)\n5. Calcula el total_final sumando todos los subtotales.\n6. Devuelve únicamente un objeto JSON válido: sin texto adicional, sin markdown, sin bloques de código ```json.\n\nFORMATO DE SALIDA:\n{\n  \"cliente_id\": \"C-001\",\n  \"productos\": [\n    {\n      \"sku\": \"SKU-001\",\n      \"cantidad\": 10,\n      \"precio_unit\": 10.00,\n      \"descuento_pct\": 5.00,\n      \"subtotal\": 95.00\n    }\n  ],\n  \"total_final\": 95.00,\n  \"plazo_pago\": \"30 días\",\n  \"justificacion_ajustes\": \"Se aplicó el descuento del 5% según política.\",\n  \"fuentes_citadas\": [\"Catálogo de Productos 2026\"]\n}\n\nSOLICITUD DEL CLIENTE:\n{{ $('Parsear entrada').item.json.mensaje_cliente }}\n\nPRODUCTOS DISPONIBLES:\n{{ JSON.stringify($('Parsear entrada').item.json.productos) }}\n\nPOLÍTICAS APLICABLES:\n- Regla de descuento: {{ $('Parsear entrada').item.json.regla_descuento }}\n- Plazo máximo de pago: {{ $('Parsear entrada').item.json.plazo_pago_max }}\n\nFUENTES CITADAS:\n{{ JSON.stringify($('Parsear entrada').item.json.fuentes_citadas) }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1216,
+        416
+      ],
+      "id": "f0a559ff-6287-409d-bec7-712e48375d91",
+      "name": "LLM Armador (Reintento)"
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawText = $input.first().json.choices?.[0]?.message?.content || $input.first().json.text || \"\";\n\nlet cleanText = rawText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\ntry {\n  const parsedJson = JSON.parse(cleanText);\n  return [{ json: parsedJson }];\n} catch (e) {\n  return [{ json: { \n    error: \"Formato JSON inválido devuelto por el LLM\", \n    raw_output: rawText,\n    fallback_action: \"REQUIERE_REVISION\" \n  }}];\n}"
+      },
+      "id": "97a1c123-caf8-4907-8b4e-95dec0740bfa",
+      "name": "Limpiar y Parsear JSON (Reintento)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        416
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parsear entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear entrada": {
+      "main": [
+        [
+          {
+            "node": "LLM Armador de Pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Armador de Pedido": {
+      "main": [
+        [
+          {
+            "node": "Limpiar y Parsear JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LLM Armador de Pedido",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "LLM Armador (Reintento)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar y Parsear JSON": {
+      "main": [
+        [
+          {
+            "node": "¿Parse OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Parse OK?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "LLM Armador (Reintento)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Armador (Reintento)": {
+      "main": [
+        [
+          {
+            "node": "Limpiar y Parsear JSON (Reintento)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c1189ad6-0118-4996-b099-c59978a0504f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c6d036f4268dbd49e602e966ac37171e86ef791cc4bb3382471c1a03bf7434e3"
+  },
+  "nodeGroups": [],
+  "id": "ZD8XvkAd3z1lHe4N",
+  "tags": []
+}

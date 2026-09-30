@@ -1,0 +1,179 @@
+{
+  "name": "worker_1_rag_extractor.json",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ \"CONTEXTO RAG:\\n\" + $json.contexto_rag + \"\\n\\nCONSULTA CLIENTE: \" + $json.mensaje_cliente }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Eres un motor de extracción de datos comerciales de precisión quirúrgica. \nREGLAS INQUEBRANTABLES:\n1. SOLO usa información del CONTEXTO RAG proporcionado.\n2. NO inventes precios, SKUs o políticas. Si el producto NO existe en el contexto, responde con el SKU \"NO_ENCONTRADO\".\n3. Tu respuesta debe ser EXCLUSIVAMENTE un objeto JSON válido. Cero texto introductorio o conclusivo.\n\nFORMATO JSON OBLIGATORIO:\n{\n  \"productos\": [{\"sku\": \"string\", \"precio_base\": 0.00, \"stock\": 0}],\n  \"regla_descuento\": \"string\",\n  \"plazo_pago_max\": \"string\",\n  \"fuentes_citadas\": [\"string\"]\n}\n\nCONTEXTO RAG: {{ $json.contexto_rag }}\nCONSULTA CLIENTE: {{ $json.mensaje_cliente }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        352,
+        416
+      ],
+      "id": "f7877125-c470-430f-ab81-73e8fd9e3cb2",
+      "name": "LLM RAG Extractor"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "documents",
+        "returnAll": true,
+        "filterType": "none"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        416
+      ],
+      "id": "8d7709cb-a6b4-4ecf-896d-edd3a914c0e0",
+      "name": "Buscar en Vector DB",
+      "credentials": {
+        "supabaseApi": {
+          "id": "fF2dv5I5psdk9umR",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -320,
+        416
+      ],
+      "id": "5f832e56-bf53-41c2-800f-8f38f01b6481",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all();\nconst contexto = results.map(item => item.json.content || item.json.text || '').join('\\n\\n---\\n\\n');\nconst fuentes = results.map(item => item.json.metadata || {});\n\nconst entrada = $('When Executed by Another Workflow').item.json;\nconst mensajeCliente = entrada.mensaje_cliente || entrada.mensaje_original || entrada.message?.text || '';\n\nreturn [{\n  json: { contexto_rag: contexto, mensaje_cliente: mensajeCliente, fuentes_citadas: fuentes }\n}];"
+      },
+      "id": "bf586d3d-349e-4242-b199-6cf0b7c1651e",
+      "name": "Extraer Contexto RAG",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        144,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "model": "openrouter/free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        352,
+        592
+      ],
+      "id": "5b22593d-f735-48bc-92d2-08457ed6df82",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "9a1bznYTvIqq8E2Y",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawText = $input.first().json.choices?.[0]?.message?.content || $input.first().json.text || \"\";\n\n// Elimina bloques de markdown\nlet cleanText = rawText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\ntry {\n  const parsedJson = JSON.parse(cleanText);\n  return [{ json: parsedJson }];\n} catch (e) {\n  return [{ json: { \n    error: \"Formato JSON inválido devuelto por el LLM\", \n    raw_output: rawText,\n    fallback_action: \"REQUIERE_REVISION\" \n  }}];\n}"
+      },
+      "id": "8aaa1e26-f941-4102-84f8-5da970b021ff",
+      "name": "Limpiar y Parsear JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        624,
+        416
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "LLM RAG Extractor": {
+      "main": [
+        [
+          {
+            "node": "Limpiar y Parsear JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar en Vector DB": {
+      "main": [
+        [
+          {
+            "node": "Extraer Contexto RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Buscar en Vector DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Contexto RAG": {
+      "main": [
+        [
+          {
+            "node": "LLM RAG Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LLM RAG Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f3f36b9c-1908-4bcd-bd79-e822fe7998fd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c6d036f4268dbd49e602e966ac37171e86ef791cc4bb3382471c1a03bf7434e3"
+  },
+  "nodeGroups": [],
+  "id": "zjMtfyELynP9qBsB",
+  "tags": []
+}

@@ -1,0 +1,1513 @@
+{
+  "name": "Manager - Agente Ventas B2B",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e7d92c03-bd2d-4119-87c1-b6cce1d986c3",
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1856,
+        1376
+      ],
+      "id": "d64a9a1e-3f91-4347-8e2f-9d9d602718ea",
+      "name": "If1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -1632,
+        1472
+      ],
+      "id": "3e9052e4-2301-4b0f-8342-fbf0d4b435b2",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all();\nconst cantidadRegistros = results.length;\n\nlet yaProcesado = false;\nlet statusExistente = null;\n\nif (cantidadRegistros > 0 && results[0].json && results[0].json.quote_id) {\n  yaProcesado = true;\n  statusExistente = results[0].json.status;\n}\n\nconst quoteId = $('Generar Hash Idempotencia').item.json.quote_id;\nconst chatId = $('Generar Hash Idempotencia').item.json.chat_id;\nconst mensajeCliente = $('Generar Hash Idempotencia').item.json.mensaje_cliente;\n\nreturn [{\n  json: {\n    quote_id: quoteId,\n    chat_id: chatId,\n    mensaje_cliente: mensajeCliente,\n    ya_procesado: yaProcesado,\n    cantidad_registros: cantidadRegistros,\n    status_existente: statusExistente\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        1472
+      ],
+      "id": "fc0e93a5-bc00-4f9e-94cf-e5dd5ecdd2e3",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const corregido = $('Detectar Ajustes').item.json || {};\nconst productos = Array.isArray(corregido.productos) ? corregido.productos : [];\nlet productosTexto = 'No disponible';\nif (productos.length > 0) {\n  productosTexto = productos.map(p => `SKU: ${p.sku} | Cant: ${p.cantidad} | Precio: $${p.precio_unit} | Desc: ${p.descuento_pct}% | Subtotal: $${p.subtotal}`).join('\\n');\n}\nconst totalFinal = Number(corregido.total_final) || 0;\nconst plazoPago = corregido.plazo_pago || 'N/A';\nconst chatId = $('Generar Hash Idempotencia').item.json.chat_id;\nlet razonTecnica = 'Sin dictamen';\ntry { razonTecnica = $('Ejecutar Worker 3: Juez').item.json.razon_tecnica || razonTecnica; } catch (e) {}\nreturn [{\n  json: {\n    cliente: chatId, sku_productos: productosTexto, total: totalFinal, plazo_pago: plazoPago,\n    status: 'Aprobado', dictamen_juez: razonTecnica, razon_tecnica: razonTecnica,\n    fecha_creacion: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2176,
+        1568
+      ],
+      "id": "fee8e356-a6e5-486f-ad88-fbc7f8226e70",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appzxslEI0EYz8LuE",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblHm7RKmzpHGgzH6",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Cliente": "={{ $json.cliente }}",
+            "SKU_Productos": "={{ $json.sku_productos }}",
+            "Plazo_Pago": "={{ $json.plazo_pago }}",
+            "Status": "Aprobado",
+            "Dictamen_Juez": "={{ $json.dictamen_juez }}",
+            "Fecha_Creacion": "={{ $json.fecha_creacion }}",
+            "Total": "={{ $json.total }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Cliente",
+              "displayName": "Cliente",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "SKU_Productos",
+              "displayName": "SKU_Productos",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Total",
+              "displayName": "Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Plazo_Pago",
+              "displayName": "Plazo_Pago",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Dictamen_Juez",
+              "displayName": "Dictamen_Juez",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Fecha_Creacion",
+              "displayName": "Fecha_Creacion",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2400,
+        1568
+      ],
+      "id": "3f6c1b35-42f4-4a67-a63b-e41cf8493e03",
+      "name": "Crear Pedido en Airtable",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "4aqRi9C4pTAU5k7D",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot<TELEGRAM_MANAGER_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "parse_mode",
+              "value": "={{ $json.parse_mode }}"
+            },
+            {
+              "name": "reply_markup",
+              "value": "={{ $json.reply_markup }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1a77aa9-81d3-49a0-a7a3-fa4e6f49f450",
+      "name": "Enviar Alerta a Gerentes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        1792
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b2266dd5-f310-4c3e-8e39-7bfcbbfe0da9",
+              "leftValue": "={{ $json.ya_procesado }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -512,
+        1472
+      ],
+      "id": "71a90c7b-59ed-4b94-8f0a-c433973c038b",
+      "name": "¿Ya Procesado?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const entrada = $input.first().json;\nconst message = entrada.message || $('Telegram Trigger').item.json.message;\nconst texto = (message.text || '').trim().toLowerCase();\nconst chatId = message.chat.id;\nconst esConfirmo = /^(confirmo|confirmar|confirmado)$/.test(texto);\nconst esCancelar = /^(cancelo|cancelar|cancelado)$/.test(texto);\nreturn [{ json: { es_confirmacion: esConfirmo || esCancelar, accion_cliente: esConfirmo ? 'confirmo' : (esCancelar ? 'cancelar' : 'nuevo'), chat_id: chatId, texto_original: message.text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1632,
+        1280
+      ],
+      "id": "da2740ae-49c1-4891-bdb9-5fd970593bc8",
+      "name": "Clasificar Confirmación"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "909bf998-967e-4f50-8b60-9604ee1535a3",
+              "leftValue": "={{ $json.es_confirmacion }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1408,
+        1280
+      ],
+      "id": "26efeb48-a482-4b26-9169-071ce4fa4b5d",
+      "name": "¿Es Confirmación?"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "quotes_state",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.chat_id }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "AWAITING_CLIENT_CONFIRM"
+            }
+          ]
+        }
+      },
+      "id": "53b39b2d-b6c3-471d-a918-cde27b2bcb90",
+      "name": "Buscar Pedido Pendiente",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1184,
+        1184
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "fF2dv5I5psdk9umR",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const filas = $input.all().map(i => i.json).filter(f => f && f.quote_id);\nconst accion = $('Clasificar Confirmación').item.json.accion_cliente;\nconst chatId = $('Clasificar Confirmación').item.json.chat_id;\nif (filas.length === 0) { return [{ json: { encontrado: false, chat_id: chatId, accion_cliente: accion } }]; }\nfilas.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));\nconst pedido = filas[0];\nlet productos = pedido.productos || [];\nif (typeof productos === 'string') { try { productos = JSON.parse(productos); } catch (e) { productos = []; } }\nif (!Array.isArray(productos)) productos = [];\nconst productosTexto = productos.length > 0 ? productos.map(p => `SKU: ${p.sku} | Cant: ${p.cantidad} | Precio: $${p.precio_unit} | Desc: ${p.descuento_pct}% | Subtotal: $${p.subtotal}`).join('\\n') : 'No disponible';\nlet total = Number(pedido.total_final) || 0;\nif (!total && productos.length) { total = productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0); }\nreturn [{ json: { encontrado: true, chat_id: chatId, quote_id: pedido.quote_id, accion_cliente: accion, nuevo_status: accion === 'confirmo' ? 'COMPLETED' : 'REJECTED_BY_CLIENT', sku_productos: productosTexto, total: total, plazo_pago: pedido.plazo_pago || 'N/A' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        1184
+      ],
+      "id": "e224b8dd-8e7e-42ad-8958-6bba4e857e55",
+      "name": "Resolver Confirmación"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "879e9edb-1770-43d6-aee1-2683357053cb",
+              "leftValue": "={{ $json.encontrado }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -736,
+        1184
+      ],
+      "id": "23cb0cc2-bb41-46ba-bc17-a493d23aad46",
+      "name": "¿Pedido Encontrado?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "quotes_state",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "quote_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.quote_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $json.nuevo_status }}"
+            }
+          ]
+        }
+      },
+      "id": "d41f70f8-1c97-4acd-94e5-2c90f299e078",
+      "name": "Actualizar Estado Final Cliente",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        1088
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "fF2dv5I5psdk9umR",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "83998e47-a8c1-437b-ac0a-4ff20977fdab",
+              "leftValue": "={{ $('Resolver Confirmación').item.json.accion_cliente }}",
+              "rightValue": "confirmo",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -288,
+        1088
+      ],
+      "id": "60701503-2cb0-474d-8539-5fd683e75e1e",
+      "name": "¿Confirmó?"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appzxslEI0EYz8LuE",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblHm7RKmzpHGgzH6",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Cliente": "={{ $('Resolver Confirmación').item.json.chat_id }}",
+            "SKU_Productos": "={{ $('Resolver Confirmación').item.json.sku_productos }}",
+            "Plazo_Pago": "={{ $('Resolver Confirmación').item.json.plazo_pago }}",
+            "Status": "Aprobado",
+            "Dictamen_Juez": "=Aprobado por gerencia y confirmado por el cliente.",
+            "Fecha_Creacion": "={{ $now.toISO() }}",
+            "Total": "={{ $('Resolver Confirmación').item.json.total }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Cliente",
+              "displayName": "Cliente",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "SKU_Productos",
+              "displayName": "SKU_Productos",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Total",
+              "displayName": "Total",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Plazo_Pago",
+              "displayName": "Plazo_Pago",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Dictamen_Juez",
+              "displayName": "Dictamen_Juez",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Fecha_Creacion",
+              "displayName": "Fecha_Creacion",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        -64,
+        992
+      ],
+      "id": "8b1167a9-24df-4183-bcfc-0501ff13699a",
+      "name": "Crear Pedido Confirmado",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "4aqRi9C4pTAU5k7D",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=🎉 Pedido Registrado\n\n¡Gracias por tu confirmación! Tu pedido quedó registrado con estas condiciones:\n\n📦 {{ $('Resolver Confirmación').item.json.sku_productos }}\n💰 Total: ${{ $('Resolver Confirmación').item.json.total }}\n📅 Plazo de pago: {{ $('Resolver Confirmación').item.json.plazo_pago }}\n\nUn representante de ventas coordinará la entrega contigo.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "bfa7db85-da06-40c1-a585-e73467dfbe37",
+      "name": "Notificar Pedido Confirmado",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        160,
+        992
+      ],
+      "webhookId": "f6b1e7dd-09fa-4a95-8290-419bd0b2c1e1",
+      "credentials": {
+        "telegramApi": {
+          "id": "73mtvCTDSnGdCO6R",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=❌ Pedido Cancelado\n\nTu solicitud fue descartada según tu indicación y no se registró ningún pedido. Cuando quieras, envianos una nueva consulta.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "f7bff4e3-3ebb-4575-98ca-1cc586a06270",
+      "name": "Notificar Pedido Cancelado",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        1184
+      ],
+      "webhookId": "36b46dc6-91eb-4a95-98f2-7d6f0827038b",
+      "credentials": {
+        "telegramApi": {
+          "id": "73mtvCTDSnGdCO6R",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=📋 Sin pedidos pendientes\n\nNo encontramos pedidos esperando tu confirmación. Si querés hacer una consulta nueva, envianos los detalles de tu pedido.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "561eb417-a3ed-4ddd-90e3-cd37fdff00f6",
+      "name": "Notificar Sin Pedido",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        1280
+      ],
+      "webhookId": "ee63c206-6655-4350-a306-5a27e205cc86",
+      "credentials": {
+        "telegramApi": {
+          "id": "73mtvCTDSnGdCO6R",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "063f99b8-cc6b-4915-a60a-610039deb87c",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2080,
+        1376
+      ],
+      "webhookId": "914b45b2-801a-4744-928b-1251065ed7bb",
+      "credentials": {
+        "telegramApi": {
+          "id": "73mtvCTDSnGdCO6R",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const entrada = $input.first().json;\nconst message = entrada.message || $('Telegram Trigger').item.json.message;\n\nif (!message || !message.text) {\n  return [];\n}\n\nconst chatId = message.chat.id;\nconst mensaje = message.text.toLowerCase().trim();\nconst messageId = message.message_id;\n\nconst rawString = `${chatId}_${mensaje}`;\n\nlet hash = 5381;\nfor (let i = 0; i < rawString.length; i++) {\n  hash = (hash * 33) ^ rawString.charCodeAt(i);\n}\nconst quoteId = (hash >>> 0).toString(36);\n\nreturn [{\n  json: {\n    quote_id: quoteId,\n    chat_id: chatId,\n    message_id: messageId,\n    mensaje_cliente: message.text\n  }\n}];"
+      },
+      "id": "95c3dd52-548c-4c44-af91-428459d19a2e",
+      "name": "Generar Hash Idempotencia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -1184,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "quotes_state",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "quote_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.quote_id }}"
+            }
+          ]
+        }
+      },
+      "id": "77b77ce0-1e31-4396-815f-5f00b24cc590",
+      "name": "Verificar Idempotencia",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -960,
+        1472
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "fF2dv5I5psdk9umR",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const status = $('Code in JavaScript2').item.json.status_existente;\nconst chatId = $('Generar Hash Idempotencia').item.json.chat_id;\nlet mensaje = '';\nswitch(status) {\n  case 'COMPLETED': mensaje = '📋 Solicitud ya aprobada \\n\\nEstimado cliente, tu pedido ya fue procesado y aprobado anteriormente.'; break;\n  case 'PENDING_HUMAN': mensaje = '⏳ Solicitud en revisión \\n\\nEstimado cliente, tu pedido ya fue recibido y está siendo revisado por nuestro equipo de gerencia.'; break;\n  case 'APPROVED_BY_HUMAN': mensaje = '✅ Pedido aprobado \\n\\nEstimado cliente, tu pedido ya fue aprobado manualmente por gerencia.'; break;\n  case 'REJECTED_BY_HUMAN': mensaje = '❌ Pedido no aprobado \\n\\nEstimado cliente, tu solicitud anterior no fue aprobada por gerencia.'; break;\n  case 'AWAITING_CLIENT_CONFIRM': mensaje = '⏳ Esperando tu confirmación \\n\\nTu pedido fue aprobado por gerencia con condiciones ajustadas y estamos esperando tu respuesta. Respondé CONFIRMO para registrarlo o CANCELAR para descartarlo.'; break;\n  case 'REJECTED_BY_CLIENT': mensaje = '❌ Pedido cancelado \\n\\nEsta solicitud fue cancelada por vos anteriormente.'; break;\n  default: mensaje = '📋 Solicitud en proceso \\n\\nEstimado cliente, tu pedido ya fue recibido y está siendo procesado.';\n}\nreturn [{ json: { chat_id: chatId, text: mensaje, parse_mode: 'Markdown' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        1376
+      ],
+      "id": "03ba6521-b4a7-4dc5-a701-80c5dfb9b6e0",
+      "name": "Generar Mensaje Idempotencia"
+    },
+    {
+      "parameters": {
+        "tableId": "quotes_state",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "quote_id",
+              "fieldValue": "={{ $json.quote_id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $json.chat_id }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "PROCESSING"
+            }
+          ]
+        }
+      },
+      "id": "7bf5bdde-a690-49ba-8683-9a647ee11b57",
+      "name": "Registrar Estado PROCESSING",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        1568
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "fF2dv5I5psdk9umR",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "5c70b1b8-fe33-4798-a055-854f9d85077d",
+      "name": "Notificar Cliente - Ya Procesado",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        1376
+      ],
+      "webhookId": "53ec22cb-dea7-444f-9213-a9df27954cd3",
+      "credentials": {
+        "telegramApi": {
+          "id": "73mtvCTDSnGdCO6R",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "⏳ Hemos recibido tu solicitud. Nuestro sistema está calculando la cotización y auditando márgenes. Te responderemos en breve.",
+        "additionalFields": {}
+      },
+      "id": "5897b994-32ab-4f32-8eb9-12d3373f22be",
+      "name": "Respuesta Inmediata (Asincronía)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        1568
+      ],
+      "webhookId": "ce5ea04e-e256-419a-b5d1-b7306ccb1d10",
+      "credentials": {
+        "telegramApi": {
+          "id": "73mtvCTDSnGdCO6R",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const mensajeCliente = $('Generar Hash Idempotencia').item.json.mensaje_cliente;\nreturn [{ json: { mensaje_cliente: mensajeCliente } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        1568
+      ],
+      "id": "7311e065-055b-4ae3-a208-f76493978a48",
+      "name": "Inyectar Mensaje RAG"
+    },
+    {
+      "parameters": {
+        "workflowId": "zjMtfyELynP9qBsB",
+        "options": {}
+      },
+      "id": "2db628df-19f6-46fa-9555-5be29d0353d6",
+      "name": "Ejecutar Worker 1: RAG",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        384,
+        1568
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rag = $input.first().json;\nconst mensajeCliente = $('Generar Hash Idempotencia').item.json.mensaje_cliente;\nreturn [{ json: { ...rag, mensaje_cliente: mensajeCliente } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        1568
+      ],
+      "id": "d582619c-c83f-46b9-8abb-3f32283f0d68",
+      "name": "Inyectar Mensaje Cliente"
+    },
+    {
+      "parameters": {
+        "workflowId": "ZD8XvkAd3z1lHe4N",
+        "options": {}
+      },
+      "id": "accbe501-2214-493b-be22-14309965fac1",
+      "name": "Ejecutar Worker 2: Armador",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        832,
+        1568
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// =====================================================\n// Detectar Ajustes - Manager\n// Con guardas de fallo técnico + decisión HITL por TOPES GLOBALES\n// =====================================================\n\n// 1. Mensaje original del cliente\nconst mensajeOriginal = $('Generar Hash Idempotencia').item.json.mensaje_cliente;\n\n// 2. Pedido ajustado del Worker 2\nconst pedidoAjustado = $('Ejecutar Worker 2: Armador').item.json;\nconst productosWorker2 = pedidoAjustado.productos || pedidoAjustado.evaluacion?.productos || [];\n\n// 🛡️ GUARDA 1: si el Worker 2 falló (moderación o JSON inválido), no fingir ajustes\nconst worker2Ok = Array.isArray(productosWorker2) && productosWorker2.length > 0 && !pedidoAjustado.error;\n\nif (!worker2Ok) {\n  return [{\n    json: {\n      ...pedidoAjustado,\n      productos: [],\n      total_final: 0,\n      mensaje_original: mensajeOriginal,\n      descuento_solicitado: parseInt(mensajeOriginal.match(/(\\d+)%/)?.[1] || 0),\n      descuento_ajustado: 0,\n      plazo_solicitado: parseInt(mensajeOriginal.match(/(\\d+)\\s*d[ií]as?/)?.[1] || 0),\n      plazo_ajustado: 0,\n      cantidad_solicitada: parseInt(mensajeOriginal.match(/(\\d+)\\s+unidades?/)?.[1] || 0),\n      cantidad_ajustada: 0,\n      reduccion_descuento_pct: 0,\n      reduccion_plazo_pct: 0,\n      requiere_aprobacion_humana: true,\n      worker2_fallo: true,\n      razon_tecnica_ajustes: 'FALLO TÉCNICO: el Worker 2 (Armador) no devolvió un pedido estructurado (el LLM respondió moderación o JSON inválido). El pedido requiere revisión manual completa.'\n    }\n  }];\n}\n\n// 3. 🔧 CATÁLOGO DEL RAG (Worker 1) = fuente de verdad del precio base\nconst ragOutput = $('Ejecutar Worker 1: RAG').item.json;\nconst productosRAG = ragOutput.productos || ragOutput.result?.productos || [];\n\n// 4. Valores solicitados por el cliente (regex)\nconst descuentoSolicitado = parseInt(mensajeOriginal.match(/(\\d+)%/)?.[1] || 0);\nconst plazoSolicitado = parseInt(mensajeOriginal.match(/(\\d+)\\s*d[ií]as?/)?.[1] || 0);\nconst cantidadRegex = parseInt(mensajeOriginal.match(/(\\d+)\\s+unidades?/)?.[1] || 0);\n\n// 5. 🔧 Reconstruir productos con PRECIO BASE real (evita descuento doble)\nlet productosFinales = [];\nlet totalFinal = 0;\n\nfor (const p of productosWorker2) {\n  const registroRAG = productosRAG.find(r => r.sku === p.sku);\n  const precioBase = Number(registroRAG?.precio_base) || 0;\n  const descuento = Number(p.descuento_pct) || 0;\n  const cantidad = (productosWorker2.length === 1 && cantidadRegex)\n    ? cantidadRegex\n    : (Number(p.cantidad) || 0);\n  const subtotal = cantidad * precioBase * (1 - descuento / 100);\n\n  productosFinales.push({\n    sku: p.sku,\n    cantidad: cantidad,\n    precio_unit: precioBase,          // ← precio BASE, sin descuento\n    descuento_pct: descuento,\n    subtotal: Math.round(subtotal * 100) / 100\n  });\n  totalFinal += subtotal;\n}\n\ntotalFinal = Math.round(totalFinal * 100) / 100;\n\n// Fallback si no hubo productos\nif (productosFinales.length === 0) {\n  productosFinales = productosWorker2;\n  totalFinal = Number(pedidoAjustado.total_final) || 0;\n}\n\n// 🛡️ GUARDA 2: si el RAG no trajo precios base, el total no es confiable\n// Evita aprobación automática con Total $0\nconst sinPrecio = productosFinales.some(p => !Number(p.precio_unit));\nif (productosFinales.length > 0 && sinPrecio) {\n  return [{\n    json: {\n      ...pedidoAjustado,\n      productos: [],\n      total_final: 0,\n      mensaje_original: mensajeOriginal,\n      descuento_solicitado: descuentoSolicitado,\n      descuento_ajustado: 0,\n      plazo_solicitado: plazoSolicitado,\n      plazo_ajustado: 0,\n      cantidad_solicitada: cantidadRegex,\n      cantidad_ajustada: 0,\n      reduccion_descuento_pct: 0,\n      reduccion_plazo_pct: 0,\n      requiere_aprobacion_humana: true,\n      worker1_fallo: true,\n      razon_tecnica_ajustes: 'FALLO TÉCNICO: el Worker 1 (RAG) no devolvió el catálogo/precios base. No se puede calcular un total confiable. Revisión manual requerida.'\n    }\n  }];\n}\n\n// 6. Valores ajustados para la comparación\nconst producto = productosFinales[0] || {};\nconst descuentoAjustado = Number(producto.descuento_pct) || 0;\nconst plazoAjustadoStr = pedidoAjustado.plazo_pago || pedidoAjustado.evaluacion?.plazo_pago || '0';\nconst plazoAjustado = parseInt(plazoAjustadoStr) || 0;\nconst cantidadSolicitada = cantidadRegex || Number(producto.cantidad) || 0;\nconst cantidadAjustada = cantidadSolicitada;\n\n// 7. Reducciones (solo informativas, ya no deciden HITL)\nconst reduccionDescuento = descuentoSolicitado > 0\n  ? ((descuentoSolicitado - descuentoAjustado) / descuentoSolicitado) * 100\n  : 0;\nconst reduccionPlazo = plazoSolicitado > 0\n  ? ((plazoSolicitado - plazoAjustado) / plazoSolicitado) * 100\n  : 0;\n\n// 🎯 8. NUEVA DECISIÓN: HITL solo si la SOLICITUD excede los TOPES GLOBALES de política\n// (antes usaba % de reducción y castigaba ajustes legítimos de catálogo por volumen)\nconst DESCUENTO_MAX_GLOBAL = 10;  // % máximo absoluto permitido por política\nconst PLAZO_MAX_GLOBAL = 30;      // días máximos absolutos permitidos por política\nconst violaTopeDescuento = descuentoSolicitado > DESCUENTO_MAX_GLOBAL;\nconst violaTopePlazo = plazoSolicitado > PLAZO_MAX_GLOBAL;\nconst requiereAprobacionHumana = violaTopeDescuento || violaTopePlazo;\n\n// 9. Razón técnica\nlet razonTecnica = '';\nif (requiereAprobacionHumana) {\n  razonTecnica = 'VIOLACIÓN DE POLÍTICA GLOBAL. ';\n  if (violaTopeDescuento) razonTecnica += `Descuento solicitado ${descuentoSolicitado}% excede el máximo global de ${DESCUENTO_MAX_GLOBAL}%. `;\n  if (violaTopePlazo) razonTecnica += `Plazo solicitado ${plazoSolicitado} días excede el máximo global de ${PLAZO_MAX_GLOBAL} días. `;\n  razonTecnica += `El sistema ajustó a ${descuentoAjustado}% / ${plazoAjustado} días. Requiere aprobación de gerencia.`;\n} else {\n  razonTecnica = `Solicitud dentro de topes globales. Ajuste de catálogo aplicado: descuento ${descuentoSolicitado}% -> ${descuentoAjustado}%, plazo ${plazoSolicitado} -> ${plazoAjustado} días.`;\n}\n\nreturn [{\n  json: {\n    ...pedidoAjustado,\n    productos: productosFinales,\n    total_final: totalFinal,\n    mensaje_original: mensajeOriginal,\n    descuento_solicitado: descuentoSolicitado,\n    descuento_ajustado: descuentoAjustado,\n    plazo_solicitado: plazoSolicitado,\n    plazo_ajustado: plazoAjustado,\n    cantidad_solicitada: cantidadSolicitada,\n    cantidad_ajustada: cantidadAjustada,\n    reduccion_descuento_pct: Math.round(reduccionDescuento),\n    reduccion_plazo_pct: Math.round(reduccionPlazo),\n    requiere_aprobacion_humana: requiereAprobacionHumana,\n    razon_tecnica_ajustes: razonTecnica\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        1568
+      ],
+      "id": "09594b93-665a-471b-80ad-c2b1e82da3fd",
+      "name": "Detectar Ajustes"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0b9888e2-9e7e-4dc3-a26c-bbaabffba3c0",
+              "leftValue": "={{ $json.requiere_aprobacion_humana }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1280,
+        1568
+      ],
+      "id": "40401078-7019-406a-90d0-0b210e2fa918",
+      "name": "¿Ajustes Significativos? (IF)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ajustes = $input.first().json;\nconst rag = $('Ejecutar Worker 1: RAG').item.json;\nreturn [{\n  json: {\n    pedido_generado: {\n      cliente_id: ajustes.cliente_id, productos: ajustes.productos, total_final: ajustes.total_final,\n      plazo_pago: ajustes.plazo_pago, justificacion_ajustes: ajustes.justificacion_ajustes,\n      fuentes_citadas: ajustes.fuentes_citadas, mensaje_original: ajustes.mensaje_original\n    },\n    politicas_base: {\n      productos: rag.productos, regla_descuento: rag.regla_descuento,\n      plazo_pago_max: rag.plazo_pago_max, fuentes_citadas: rag.fuentes_citadas\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        1568
+      ],
+      "id": "4b972656-3149-47be-9a68-5cd4f7faf6b4",
+      "name": "Inyectar Datos Juez"
+    },
+    {
+      "parameters": {
+        "workflowId": "Fyiu1Wk0e4OH9nRu",
+        "options": {}
+      },
+      "id": "3901db5f-9134-488e-8f7a-f65243a19715",
+      "name": "Ejecutar Worker 3: Juez",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        1728,
+        1568
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [],
+          "number": [
+            {
+              "value1": "={{ $json.evaluacion.score_total }}",
+              "operation": "largerEqual",
+              "value2": 4
+            }
+          ]
+        }
+      },
+      "id": "ffe47536-869c-4c9a-82f8-e84bafce806d",
+      "name": "Score >= 4?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1952,
+        1568
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "quotes_state",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "quote_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Generar Hash Idempotencia').item.json.quote_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "PENDING_HUMAN"
+            },
+            {
+              "fieldId": "productos",
+              "fieldValue": "={{ JSON.stringify($('Detectar Ajustes').item.json.productos) }}"
+            },
+            {
+              "fieldId": "total_final",
+              "fieldValue": "={{ $('Detectar Ajustes').item.json.total_final }}"
+            },
+            {
+              "fieldId": "plazo_pago",
+              "fieldValue": "={{ $('Detectar Ajustes').item.json.plazo_pago }}"
+            },
+            {
+              "fieldId": "mensaje_cliente",
+              "fieldValue": "={{ $('Detectar Ajustes').item.json.mensaje_original }}"
+            }
+          ]
+        }
+      },
+      "id": "5c30cb65-f7cb-4398-a919-f4a16e4d035a",
+      "name": "Actualizar Estado PENDING_HUMAN",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1952,
+        1792
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "fF2dv5I5psdk9umR",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const quoteId = $('Generar Hash Idempotencia').item.json.quote_id;\nconst chatIdGerentes = '-1004353798072';\nconst ajustes = $('Detectar Ajustes').item.json || {};\nlet razonTecnica = '';\nif (ajustes.requiere_aprobacion_humana) {\n  razonTecnica = `AJUSTES SIGNIFICATIVOS DETECTADOS.`;\n  razonTecnica += `Descuento solicitado: ${ajustes.descuento_solicitado}% -> Ajustado: ${ajustes.descuento_ajustado}% (reducción ${ajustes.reduccion_descuento_pct}%).`;\n  razonTecnica += `Plazo solicitado: ${ajustes.plazo_solicitado} días -> Ajustado: ${ajustes.plazo_ajustado} días (reducción ${ajustes.reduccion_plazo_pct}%).`;\n  razonTecnica += `Requiere aprobación de gerencia.`;\n} else {\n  try {\n    const juez = $('Ejecutar Worker 3: Juez').item.json;\n    razonTecnica = juez.razon_tecnica || 'Riesgo detectado por el sistema de auditoría (Score < 4).';\n  } catch (error) {\n    razonTecnica = 'Riesgo detectado por el sistema de auditoría. Revisión manual requerida.';\n  }\n}\nconst replyMarkup = { inline_keyboard: [[ { text: '✅ Aprobar Excepción', callback_data: 'approve_' + quoteId }, { text: '❌ Rechazar Pedido', callback_data: 'reject_' + quoteId } ]] };\nreturn [{ json: { chat_id: chatIdGerentes, text: '⚠️ ALERTA DE GOBERNANZA ⚠️\\n\\nEl pedido ha sido bloqueado por el Supervisor.\\n Razón: ' + razonTecnica + '\\n\\nPor favor, tome una acción:', parse_mode: 'Markdown', reply_markup: JSON.stringify(replyMarkup), quote_id: quoteId } }];"
+      },
+      "id": "d64a098d-af79-491c-8b09-f47833380902",
+      "name": "Construir Payload HITL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        2176,
+        1792
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "quotes_state",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "quote_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Generar Hash Idempotencia').item.json.quote_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "COMPLETED"
+            }
+          ]
+        }
+      },
+      "id": "dc3fdb37-ded4-428e-9840-7f34135e5827",
+      "name": "Actualizar Estado COMPLETED",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2624,
+        1568
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "fF2dv5I5psdk9umR",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Generar Hash Idempotencia').item.json.chat_id }}",
+        "text": "==✅ *Cotización Aprobada*\n\nTotal: ${{ $('Detectar Ajustes').item.json.total_final }}\nPlazo de pago: {{ $('Detectar Ajustes').item.json.plazo_pago }}\nDescuento aplicado: {{ $('Detectar Ajustes').item.json.descuento_ajustado }}% (según política de volumen)\n\nTu pedido ha sido procesado exitosamente.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "b8b29308-2fb4-4f17-953c-8609d3ee90e7",
+      "name": "Notificar Éxito al Cliente",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        2848,
+        1568
+      ],
+      "webhookId": "5bddcd97-38a2-4c7a-8005-e0e9bcc59847",
+      "credentials": {
+        "telegramApi": {
+          "id": "73mtvCTDSnGdCO6R",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Clasificar Confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "¿Ya Procesado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Crear Pedido en Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Pedido en Airtable": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Estado COMPLETED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Ya Procesado?": {
+      "main": [
+        [
+          {
+            "node": "Generar Mensaje Idempotencia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Estado PROCESSING",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clasificar Confirmación": {
+      "main": [
+        [
+          {
+            "node": "¿Es Confirmación?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Confirmación?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Pedido Pendiente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generar Hash Idempotencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Pedido Pendiente": {
+      "main": [
+        [
+          {
+            "node": "Resolver Confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver Confirmación": {
+      "main": [
+        [
+          {
+            "node": "¿Pedido Encontrado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Pedido Encontrado?": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Estado Final Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Sin Pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Estado Final Cliente": {
+      "main": [
+        [
+          {
+            "node": "¿Confirmó?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Confirmó?": {
+      "main": [
+        [
+          {
+            "node": "Crear Pedido Confirmado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Pedido Cancelado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Pedido Confirmado": {
+      "main": [
+        [
+          {
+            "node": "Notificar Pedido Confirmado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Hash Idempotencia": {
+      "main": [
+        [
+          {
+            "node": "Verificar Idempotencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Idempotencia": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Mensaje Idempotencia": {
+      "main": [
+        [
+          {
+            "node": "Notificar Cliente - Ya Procesado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Estado PROCESSING": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Inmediata (Asincronía)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respuesta Inmediata (Asincronía)": {
+      "main": [
+        [
+          {
+            "node": "Inyectar Mensaje RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inyectar Mensaje RAG": {
+      "main": [
+        [
+          {
+            "node": "Ejecutar Worker 1: RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ejecutar Worker 1: RAG": {
+      "main": [
+        [
+          {
+            "node": "Inyectar Mensaje Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inyectar Mensaje Cliente": {
+      "main": [
+        [
+          {
+            "node": "Ejecutar Worker 2: Armador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ejecutar Worker 2: Armador": {
+      "main": [
+        [
+          {
+            "node": "Detectar Ajustes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Ajustes": {
+      "main": [
+        [
+          {
+            "node": "¿Ajustes Significativos? (IF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Ajustes Significativos? (IF)": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Estado PENDING_HUMAN",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Inyectar Datos Juez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inyectar Datos Juez": {
+      "main": [
+        [
+          {
+            "node": "Ejecutar Worker 3: Juez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ejecutar Worker 3: Juez": {
+      "main": [
+        [
+          {
+            "node": "Score >= 4?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score >= 4?": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Actualizar Estado PENDING_HUMAN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Estado PENDING_HUMAN": {
+      "main": [
+        [
+          {
+            "node": "Construir Payload HITL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir Payload HITL": {
+      "main": [
+        [
+          {
+            "node": "Enviar Alerta a Gerentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Estado COMPLETED": {
+      "main": [
+        [
+          {
+            "node": "Notificar Éxito al Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ae7f3a4b-922d-4bc1-b888-38c08761b860",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c6d036f4268dbd49e602e966ac37171e86ef791cc4bb3382471c1a03bf7434e3"
+  },
+  "nodeGroups": [],
+  "id": "gLs3VqJ1YHRnZ0DJ",
+  "tags": []
+}
